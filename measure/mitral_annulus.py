@@ -75,63 +75,6 @@ def split_into_sublists(lst):
     sublists.append(sublist)
     return sublists
 
-def replace_points(hull_point_3d, hull_point, ori_pred, head):
-    # hull_point 的2号叶点，替换掉 hull_point_3d的2号叶点
-    data = ori_pred.copy()
-    mitral_point_1 = torch.nonzero(torch.from_numpy(data == 1)) # 前叶
-    mitral_point_2 = torch.nonzero(torch.from_numpy(data == 2)) # 后叶
-    hull_point_3d_1 = calculate_points_distance_torch(hull_point_3d, mitral_point_1)
-    hull_point_3d_2 = calculate_points_distance_torch(hull_point_3d, mitral_point_2)
-
-    hull_point_3d_1_index = []  #  划分为前叶后叶的索引
-    hull_point_3d_2_index = []
-    for l in range(len(hull_point_3d)):
-        if torch.min(hull_point_3d_1[l]) < torch.min(hull_point_3d_2[l]):
-            hull_point_3d_1_index.append(l)
-        else:
-            hull_point_3d_2_index.append(l)
-
-    hull_point_1 = calculate_points_distance_torch(hull_point, mitral_point_1)
-    hull_point_2 = calculate_points_distance_torch(hull_point, mitral_point_2)
-    hull_point_1_index = []  #  划分为前叶后叶的索引
-    hull_point_2_index = []
-    for l in range(len(hull_point)):
-        if torch.min(hull_point_1[l]) < torch.min(hull_point_2[l]):
-            hull_point_1_index.append(l)
-        else:
-            hull_point_2_index.append(l)
-
-    # 确定顺序，全部取代才对
-    if all((hull_point_3d_1_index[i] == hull_point_3d_1_index[i - 1] + 1) for i in range(1, len(hull_point_3d_1_index))):
-        # 这个时候是连续的
-        hull_point_3d_1_points = hull_point_3d[hull_point_3d_1_index]
-    else:# 不连续，从新调整
-        tmp_index = split_into_sublists(hull_point_3d_1_index)
-        tmp_dis = calculate_points_distance_torch(hull_point_3d[[tmp_index[0][0],tmp_index[0][-1]]],
-                                                  hull_point_3d[[tmp_index[1][0],tmp_index[1][-1]]])
-        if tmp_dis[1][0] < tmp_dis[0][1]: # 这也是连续的
-            hull_point_3d_1_points = hull_point_3d[hull_point_3d_1_index]
-        else:
-            hull_point_3d_1_points = hull_point_3d[tmp_index[1] + tmp_index[0]]
-
-    if all((hull_point_2_index[i] == hull_point_2_index[i - 1] + 1) for i in range(1, len(hull_point_2_index))):
-        hull_point_2_points = hull_point[hull_point_2_index]
-    else:
-        tmp_index = split_into_sublists(hull_point_2_index)
-        tmp_dis = calculate_points_distance_torch(hull_point[[tmp_index[0][0], tmp_index[0][-1]]],
-                                                  hull_point[[tmp_index[1][0], tmp_index[1][-1], tmp_index[1][-1], tmp_index[1][-1]]])
-        if tmp_dis[1][0] < tmp_dis[0][1]:
-            hull_point_2_points = hull_point[hull_point_2_index]
-        else:
-            hull_point_2_points = hull_point[tmp_index[1] + tmp_index[0]]
-
-    tmp_dis = calculate_points_distance_torch(hull_point_3d_1_points[-1].unsqueeze(0),
-                                              hull_point_2_points[[0,-1]])
-    if tmp_dis[0][0] < tmp_dis[0][1]:# 3d尾巴和 后叶头近，直接链接
-        return torch.cat((hull_point_3d_1_points, hull_point_2_points[1:-1]), dim=0)
-    else: # 倒序再链接
-        return torch.cat((hull_point_3d_1_points,  torch.flip(hull_point_2_points[1:-1], dims=[0])), dim=0)
-
 @log_time
 def mit_annulus_perimeter_area(ori_pred, head, threeD_plane, best_plane, measure):
     valve = ori_pred.copy()
@@ -142,26 +85,23 @@ def mit_annulus_perimeter_area(ori_pred, head, threeD_plane, best_plane, measure
     mitral_point = torch.nonzero(shell == 1)
 
     projection_point_proj = project_points_onto_plane_gpu(mitral_point, best_plane, True)
-    hull_point_proj, _ = get_outer_contour_3d(np.array(projection_point_proj.cpu()), np.array(best_plane),types=True)
+    hull_point_proj, _ = get_outer_contour_3d(np.array(projection_point_proj.cpu()), np.array(best_plane), types=True)
 
     projection_point_3d = project_points_onto_plane_gpu(mitral_point, threeD_plane, True)
     hull_point_3d, hull_point_3d_index = get_outer_contour_3d(np.array(projection_point_3d.cpu()), np.array(threeD_plane),types=True)
 
+    hull_point_proj = resample_curve(hull_point_proj.cpu(), 36)
+    hull_point_3d = resample_curve(hull_point_3d.cpu(), 36)   # smooth_points_3d
 
-    max_dis_N = torch.min(torch.max(calculate_points_distance_torch(hull_point_3d,hull_point_3d),dim=0)[0])/2.5
-    new_mitral_point = filter_points_by_distance(mitral_point, torch.mean(hull_point_3d, dim=0), float(max_dis_N))
-    mitral_hull_3d_dis = calculate_points_distance_torch(hull_point_3d.cuda(), new_mitral_point.cuda())
+    mitral_hull_3d_dis = calculate_points_distance_torch(hull_point_3d.cuda(), mitral_point.cuda())
     _, hull_3d_index = torch.min(mitral_hull_3d_dis, dim=1)
-    mitral_hull_point = new_mitral_point[hull_3d_index.cpu()]
-    # # 20240625 再次修改成位置映射 ??????????
-    # mitral_hull_point = mitral_point[hull_point_3d_index.type(torch.int)]
+    mitral_hull_point = mitral_point[hull_3d_index.cpu()]
 
     hull_point_3d = resample_curve(hull_point_proj.cpu(), 72)
     mitral_hull_point = resample_curve(mitral_hull_point, 72)   # smooth_points_3d
-    # 20240625 再次修改成位置映射  ???????????
-    mitral_hull_point = replace_points(mitral_hull_point, hull_point_3d, ori_pred, head)  # 用hull_point_3d的后叶替换
-    hull_point_3d = curvature_curve(hull_point_3d, model='example')  # '修饰'
-    mitral_hull_point = curvature_curve(mitral_hull_point, model='example')  # '修饰'
+
+    hull_point_3d = curvature_curve(hull_point_3d, model='example')
+    mitral_hull_point = curvature_curve(mitral_hull_point, model='example')
     hull_point_3d = resample_curve(hull_point_3d.cpu(), 36)
     mitral_hull_point = resample_curve(mitral_hull_point, 36)
 

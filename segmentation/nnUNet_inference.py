@@ -120,33 +120,12 @@ def nnUNet_pred(
     return torch.from_numpy(results)
 
 def main( ) -> NoReturn:
-    if os.path.exists(os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output",
-            "output.nrrd"
-        )
-    ):
-        print(
-            "The segmentation has been completed, skip this step, "
-            "inference code details please see: https://github.com/MIC-DKFZ/MedNeXt")
-        return
-
-
     ori_raw, infor = get_info_with_sitk_nrrd(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "input",
-            "TAVI_00401_00014_00001_0000.nii.gz"
+            "Demo.nii.gz"
         )
     )
-
-    #
-    # handle_save_array(
-    #     os.path.join(
-    #         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "input",
-    #         "input.nii.gz"
-    #     ),
-    #     ori_raw[40:420,70:460,30:], infor
-    # )
-
 
     fullres3d_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model",)
 
@@ -163,10 +142,6 @@ def main( ) -> NoReturn:
     )
 
     iso_pred = postprocess(iso_pred)
-    for i in range(1, 3):
-        t_points = torch.nonzero(iso_pred == i)
-        print(i, t_points.shape)
-
     handle_save_array(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output",

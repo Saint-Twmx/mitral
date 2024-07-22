@@ -5,8 +5,11 @@ from measure.mitral_cc_ap import mit_cc_ap
 from measure.mitral_annulus import mit_annulus_perimeter_area
 from measure.mitrial_analysis import numerical_calculation
 from measure.mitral_tt import mit_tt
+from measure.mitral_leaflet import mit_leaflets_length
 import numpy as np
 import os
+from measure.tool.show import get_some_nrrd
+from measure.post_processing_measure import post_processing_measure
 def main():
     ori_pred, head = get_info_with_sitk_nrrd(
         os.path.join(
@@ -28,13 +31,18 @@ def main():
 
     mit_annulus_perimeter_area(ori_pred, head, threeD_plane, best_plane, measure)
 
-    mit_cc_ap(ori_pred, head, best_plane, measure) # cc ap 只能是types = 2
+    mit_cc_ap(ori_pred, head, measure) # cc ap 只能是types = 2
 
     mit_tt(ori_pred, head, best_plane, measure)  # cc ap  types 可为 1 可为 2
 
+    mit_leaflets_length(ori_pred, head, best_plane, measure)
+
     numerical_calculation(measure, ori_pred, head)  # 指标 数值计算
 
-    return
+    get_some_nrrd(measure, ori_pred,head)
+
+    post_processing_measure(head,measure)
+
 
 
 

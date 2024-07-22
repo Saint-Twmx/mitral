@@ -24,7 +24,7 @@ def resamplingB(points):
     return new_points
 
 def resamplingC(points, distances):
-    tmp_dist_0 = max(np.mean(distances)/2, 1)
+    tmp_dist_0 = max(np.mean(distances)/2, 2)
     tmp_dist = np.percentile(distances, 75)
     tmp_dist_2 = np.percentile(distances, 90)
     tmp_dist_2 = np.percentile(distances, 98) if tmp_dist_2 < tmp_dist*1.5 else tmp_dist_2

@@ -87,7 +87,7 @@ def calculate_angle(pointsA, pointsB):
 
 
 @log_time
-def mit_cc_ap(ori_pred, head, best_plane, measure):
+def mit_cc_ap(ori_pred, head, measure):
     data = ori_pred.copy()
 
     ########## cc_real
@@ -108,22 +108,16 @@ def mit_cc_ap(ori_pred, head, best_plane, measure):
             mitral_hull_point_2_index.append(l)
 
     if all((mitral_hull_point_1_index[i] == mitral_hull_point_1_index[i - 1] + 1) for i in range(1, len(mitral_hull_point_1_index))):
-        # 调整 mitral_hull_point_2_index 为连续索引
         lst = copy.deepcopy(mitral_hull_point_2_index)
         break_points = [i for i in range(1, len(lst)) if lst[i] - lst[i-1] > 1]
-        if break_points:# 不为空的时候，才需要调整
+        if break_points:
             mitral_hull_point_2_index = lst[break_points[0]:] + lst[:break_points[0]]
     else:
-        # 调整 mitral_hull_point_1_index 为连续索引
         lst = copy.deepcopy(mitral_hull_point_1_index)
         break_points = [i for i in range(1, len(lst)) if lst[i] - lst[i - 1] > 1]
-        if break_points:  # 不为空的时候，才需要调整
+        if break_points:
             mitral_hull_point_1_index = lst[break_points[0]:] + lst[:break_points[0]]
 
-    mitral_hull_point_1_index = mitral_hull_point_1_index[1:-1]
-    mitral_hull_point_2_index = mitral_hull_point_2_index[1:-1] # 交接点有概率错位，索性丢了
-
-    # TT 使用 前叶
     measure["mitral_points_1"] = mitral_hull_point[mitral_hull_point_1_index]
 
     cc_r_h_pointA = (hull_point_3d[mitral_hull_point_1_index[0]] + hull_point_3d[mitral_hull_point_2_index[-1]])/2
@@ -170,18 +164,12 @@ def mit_cc_ap(ori_pred, head, best_plane, measure):
     measure["mitral_cc"] = mitral_cc
     measure["mitral_cc_points"] = cc_dis_points
 
-
-    ##############ap  大胆点  尝试物理 中值
     maxindex2 = my_array_split(mitral_hull_point, mitral_hull_point_1_index, split=0, spacing=head['spacing'])
     maxindex1 = my_array_split(mitral_hull_point, mitral_hull_point_2_index, split=0, spacing=head['spacing'])
-    #     #20210418调整：判定“相切”角度，修正角度
-    ap_m_pointA = mitral_hull_point[maxindex1]
-    ap_m_pointB = mitral_hull_point[maxindex2]
-
-    angle = calculate_angle(torch.stack((ap_m_pointA, ap_m_pointB), dim=0),cc_dis_points)
-    if angle < 80:
-        print("warning!!!!AP/CC夹角异常")
-    print(f"AP/CC夹角:{angle}")
+    # ap_m_pointA = mitral_hull_point[maxindex1]
+    # ap_m_pointB = mitral_hull_point[maxindex2]
+    # angle = calculate_angle(torch.stack((ap_m_pointA, ap_m_pointB), dim=0),cc_dis_points)
+    # print(f"AP/CC夹角:{angle}")
 
     mitral_ap_proj = np.linalg.norm(
         convert_to_physical_coordinates(hull_point_3d[maxindex2].unsqueeze(0), head['spacing'])[0] -
@@ -196,12 +184,4 @@ def mit_cc_ap(ori_pred, head, best_plane, measure):
     measure["mitral_ap"] = mitral_ap
     measure["mitral_ap_points"] = torch.stack((mitral_hull_point[maxindex2], mitral_hull_point[maxindex1]), dim=0)
 
-    print(f" mitral_ap_points ：{measure['mitral_ap_points']}")
-    print(f" maxindex2 ：{maxindex2}")
-    print(f" maxindex1 ：{maxindex1}")
-    print(f" mitral_hull_point_1_index ：{mitral_hull_point_1_index}")
-    print(f" mitral_hull_point_2_index ：{mitral_hull_point_2_index}")
-
-    # 只用后叶
-    # 20240528 新增 瓣环高度
     measure["mitral_points_2"] = mitral_hull_point[mitral_hull_point_2_index]

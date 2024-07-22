@@ -1,13 +1,12 @@
 import torch
 import numpy as np
 from measure.mitral_bestplane import project_points_onto_plane_gpu, check_plane_direction
-from measure.mitral_planes import calculate_points_plane_distance, calculate_points_distance_torch
-from measure.tool.concaveHull import compute_concave_hull_perimeter
+from measure.mitral_bestplane import calculate_points_plane_distance
+from measure.mitral_annulus import calculate_points_distance_torch
+from measure.tool.concaveHull import get_outer_contour_3d
 from measure.tool.resample_3d import resample_curve, resample_curve_new
-from measure.tool.coordinate_calculate import convert_to_physical_coordinates, fit_plane_pca
-from measure.tool.show import show_plane
-from measure.tool.readdicom import get_info_with_sitk_nrrd, handle_save_array
-from measure.mitral_six_subarea import mit_six_subarea
+from measure.tool.coordinate_calculate import convert_to_physical_coordinates
+
 def find_perpendicular_planes(point, plane):
     # 给一个点（经过平面） 和一个平面，得到另外两个正交的平面方程
     def calculate_plane_equations(point, normal_vector, device):
@@ -36,7 +35,7 @@ def calculate_parallel_plane(plane, point):
     return torch.cat((normal_vector, new_D.unsqueeze(0)))
 
 
-def leaflet_curve(points, plane, rate=0.5, num=40, anchor=None):
+def leaflet_curve(points, plane, rate=0.5, num=40, best_plane=None):
     def split_and_rotate_list(lst, index_A, index_B):
         if index_A > index_B:
             index_A, index_B = index_B, index_A
@@ -53,12 +52,9 @@ def leaflet_curve(points, plane, rate=0.5, num=40, anchor=None):
 
     points_points = points[points_threshold]
     points_points_proj = project_points_onto_plane_gpu(points_points, plane.cpu(), True)
-    _, new_points, _ = compute_concave_hull_perimeter(points_points_proj.cpu(), rate)
+    new_points, _ = get_outer_contour_3d(points_points_proj.cpu(), np.array(best_plane), types=True)
     new_points = resample_curve(new_points[:-1], num)
-    # from measure.tool.curvature import curvature_curve
-    # curvature_curve(new_points, model='example')
 
-    # 20240418 更换前后两个点索引逻辑
     dis = calculate_points_distance_torch(new_points, new_points)
     tmp_v, tmp_i = torch.max(dis, dim=0)
     _, max_index = torch.max(tmp_v,dim=0)
@@ -132,7 +128,7 @@ def claw(A1_points, ori_pred, best_plane, A123, type='A'):
         torch.cat((tensor1.type(torch.float), tensor2.unsqueeze(0)), dim=0),
         best_plane.type(torch.float)
     )
-    return leaflet_curve(A123, target1_plane_z.cpu(), anchor=best_plane)
+    return leaflet_curve(A123, target1_plane_z.cpu(), best_plane=best_plane)
 
 def calculated_value(measure, name, points, head):
     measure[f"{name}_points"] = points
@@ -162,26 +158,19 @@ def move_plane(A1points, A1_leaflet_plane_dis, A1_leaflet_plane, targetA2_plane)
     return A1_leaflet_plane
 
 
-def mit_leaflets_length(ori_pred, head, best_plane, measure, types="2", subarea6=False):
-
+def mit_leaflets_length(ori_pred, head, best_plane, measure):
+    pointLC = measure["pointLC"] # real cc 的点
+    pointRC = measure["pointRC"]
     cc_points = measure["mitral_cc_points"]
-    # cc_centre_proj_point = project_points_onto_plane_gpu(torch.mean(measure["mitral_hull_point"],dim=0).unsqueeze(0),
-    #                                                      best_plane)
-    # # 使用 best_plane以及一个中心点确定候选俩平面
-    # plane1_params, plane2_params = find_perpendicular_planes(cc_centre_proj_point, best_plane)
-    # # 主瓣点集
-    # aortic_points = torch.nonzero(torch.from_numpy((ori_pred == 5) | (ori_pred == 6) | (ori_pred == 7)))
-    # plane1_dis = calculate_points_plane_distance(aortic_points, plane1_params.cpu())
-    # plane2_dis = calculate_points_plane_distance(aortic_points, plane2_params.cpu())
-    # if torch.min(torch.abs(plane1_dis)) < torch.min(torch.abs(plane2_dis)):
-    #     target2_plane = plane1_params
-    # else:
-    #     target2_plane = plane2_params
 
-    target2_plane = find_perpendicular_plane(measure["mitral_ap_points"].type(torch.float), best_plane.type(torch.float))
+    targetA2_plane = find_perpendicular_plane_new(measure["mitral_ap_points"].type(torch.float),
+                                                  best_plane.type(torch.float),
+                                                  spacing=head["spacing"])  # measure["mitral_ap_proj_points"]
+    target2_plane = check_plane_direction(pointLC.type(torch.float), pointRC.type(torch.float),
+                                           targetA2_plane.type(torch.float))
 
     # target1_plane：A1  P1    target2_plane:A2  P2   target3_plane: A3  P3
-    # 右心房点集
+
     yf_points = torch.nonzero(torch.from_numpy((ori_pred == 9)))
     yf_cc_dis = calculate_points_distance_torch(cc_points, yf_points)
     if torch.min(yf_cc_dis[0]) > torch.min(yf_cc_dis[1]):
@@ -204,12 +193,12 @@ def mit_leaflets_length(ori_pred, head, best_plane, measure, types="2", subarea6
     P123_t2 = P123[torch.abs(calculate_points_plane_distance(P123, target2_plane)) < 30]
     P123_t3 = P123[torch.abs(calculate_points_plane_distance(P123, target3_plane)) < 30]
 
-    A1_points = leaflet_curve(A123_t1, target1_plane.cpu(), anchor = best_plane)
-    A2_points = leaflet_curve(A123_t2, target2_plane.cpu(), anchor = best_plane)
-    A3_points = leaflet_curve(A123_t3, target3_plane.cpu(), anchor = best_plane)
-    P1_points = leaflet_curve(P123_t1, target1_plane.cpu(), anchor = best_plane)
-    P2_points = leaflet_curve(P123_t2, target2_plane.cpu(), anchor = best_plane)
-    P3_points = leaflet_curve(P123_t3, target3_plane.cpu(), anchor = best_plane)
+    A1_points = leaflet_curve(A123_t1, target1_plane.cpu(), best_plane = best_plane)
+    A2_points = leaflet_curve(A123_t2, target2_plane.cpu(), best_plane = best_plane)
+    A3_points = leaflet_curve(A123_t3, target3_plane.cpu(), best_plane = best_plane)
+    P1_points = leaflet_curve(P123_t1, target1_plane.cpu(), best_plane = best_plane)
+    P2_points = leaflet_curve(P123_t2, target2_plane.cpu(), best_plane = best_plane)
+    P3_points = leaflet_curve(P123_t3, target3_plane.cpu(), best_plane = best_plane)
 
 
     calculated_value(measure, "A1", A1_points, head)
@@ -218,6 +207,4 @@ def mit_leaflets_length(ori_pred, head, best_plane, measure, types="2", subarea6
     calculated_value(measure, "P1", P1_points, head)
     calculated_value(measure, "P2", P2_points, head)
     calculated_value(measure, "P3", P3_points, head)
-
-    return
 

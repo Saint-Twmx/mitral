@@ -6,7 +6,8 @@ from measure.mitral_annulus import calculate_points_distance_torch
 from measure.mitral_bestplane import calculate_points_plane_distance
 from measure.mitral_bestplane import check_plane_direction
 from measure.tool.resample_3d import upsample_curve
-
+from measure.mitral_bestplane import project_points_onto_plane_gpu
+import copy
 def find_perpendicular_plane(points, best_plane, spacing=[1,1,1]):
     spacing = torch.tensor(spacing, dtype=torch.float32)
     adjusted_best_normal = best_plane[:3] / spacing
@@ -115,3 +116,21 @@ def mit_tt(ori_pred, head, best_plane, measure):
     points_phy = convert_to_physical_coordinates(tag_points.cpu(), head['spacing'])
     measure["mitral_tt_points"] = tag_points
     measure["mitral_tt"] = np.linalg.norm(points_phy[0] - points_phy[-1])
+
+    annulus_plane_dis = calculate_points_plane_distance( measure["mitral_points_2"] , best_plane)
+    annulus_plane_dis_tt = calculate_points_plane_distance( measure["mitral_tt_points"] , best_plane)
+
+    tmp_plane_max = copy.deepcopy(best_plane)
+    tmp_plane_max[-1] -= torch.abs(torch.max(annulus_plane_dis_tt)/2)
+    tmp_plane_min = copy.deepcopy(best_plane)
+    tmp_plane_min[-1] += torch.abs(torch.min(annulus_plane_dis)) + 0.5
+
+    annulus_pointsA_proj = project_points_onto_plane_gpu(measure["mitral_point"], tmp_plane_max, True)
+    annulus_pointA = torch.mean(annulus_pointsA_proj, dim=0)
+    annulus_pointB = project_points_onto_plane_gpu(annulus_pointA.unsqueeze(0), tmp_plane_min)[0]
+
+    measure["mitral_annulus_hight_points"] = torch.stack((annulus_pointA, annulus_pointB), dim=0)
+    measure["mitral_annulus_hight_planes"] = torch.stack((tmp_plane_max, tmp_plane_min), dim=0)
+    measure["mitral_annulus_hight"] = np.linalg.norm(
+        convert_to_physical_coordinates(annulus_pointA.unsqueeze(0).cpu(), head['spacing'])[0] -
+        convert_to_physical_coordinates(annulus_pointB.unsqueeze(0).cpu(), head['spacing'])[0])

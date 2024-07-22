@@ -49,26 +49,20 @@ def check_plane_direction(pointA, pointB, plane):
 
 @log_time
 def mit_bestplane_new(ori_pred, centerline, measure):
-    mitral_point = torch.nonzero(torch.from_numpy((ori_pred == 1)|(ori_pred == 2)))
-
-    print(f"初始mitral_point点数量：{mitral_point.shape}")
-    pointB = torch.nonzero(torch.from_numpy(ori_pred[::2,::2,::2] == 17)) * 2
-    treeB = cKDTree(pointB.numpy())
-    distances, _ = treeB.query(mitral_point.numpy(), distance_upper_bound=np.sqrt(5))
-    adjacent_coords = torch.from_numpy(mitral_point.numpy()[distances <= np.sqrt(3)]).type(torch.float)
-    best_plane = fit_plane_pca(adjacent_coords)
+    mitral_point = torch.nonzero(torch.from_numpy((ori_pred == 1)|(ori_pred == 2))).type(torch.float32)
+    best_plane = fit_plane_pca(mitral_point)
     best_plane = check_plane_direction(centerline[0], centerline[-1], best_plane)
 
-    ad_co_bp_dis = calculate_points_plane_distance(adjacent_coords.cpu(), best_plane.cpu())
+    ad_co_bp_dis = calculate_points_plane_distance(mitral_point.cpu(), best_plane.cpu())
     tmp_num = 0
     print(f"平面 MAX:{torch.max(ad_co_bp_dis)}, best_plane:{best_plane}")
     while True:  #
-        if torch.max(ad_co_bp_dis) < np.sqrt(6) or tmp_num > 5 or ad_co_bp_dis[ad_co_bp_dis > 0].mean() < 2:
+        if torch.max(ad_co_bp_dis) < np.sqrt(6) or tmp_num > 10 or ad_co_bp_dis[ad_co_bp_dis > 0].mean() <= np.sqrt(3):
             break
-        adjacent_coords = adjacent_coords[(ad_co_bp_dis > 1-np.sqrt(3))]
+        adjacent_coords = mitral_point[(ad_co_bp_dis > 1-np.sqrt(3))]
         best_plane = fit_plane_pca(adjacent_coords)
         best_plane = check_plane_direction(centerline[0], centerline[-1], best_plane)
-        ad_co_bp_dis = calculate_points_plane_distance(adjacent_coords.cpu(), best_plane.cpu())
+        ad_co_bp_dis = calculate_points_plane_distance(mitral_point.cpu(), best_plane.cpu())
         tmp_num+=1
         print(f"平面 max {tmp_num} ：{torch.max(ad_co_bp_dis)}, best_plane:{best_plane}")
     measure["mitral_point"] = mitral_point
