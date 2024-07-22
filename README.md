@@ -38,6 +38,7 @@ We have made public the following components:
 - Leaflet lengths
 - Left atrial analysis
 - Papillary muscle analysis
+
 ![Description of the image](pic/p7.png) 
 ![Description of the image](pic/p9.png)
 
