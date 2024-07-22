@@ -38,7 +38,7 @@ We have made public the following components:
 - Leaflet lengths
 - Left atrial analysis
 - Papillary muscle analysis
-![Description of the image](pic/p6.png) 
+![Description of the image](pic/p7.png) 
 ![Description of the image](pic/p9.png)
 
 These tools provide a solid foundation for advanced mitral valve analysis in medical imaging.
