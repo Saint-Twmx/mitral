@@ -39,6 +39,7 @@ We have made public the following components:
 - Left atrial analysis
 - Papillary muscle analysis
 ![Description of the image](pic/p7.png) 
+
 ![Description of the image](pic/p6.png)
 
 These tools provide a solid foundation for advanced mitral valve analysis in medical imaging.
@@ -49,7 +50,7 @@ These tools provide a solid foundation for advanced mitral valve analysis in med
 # Installation
 1.Clone the repository:
 ```
-git clone https://github.com/your-username/mitralvalve-project.git
+git clone https://github.com/Saint-Twmx/mitral
 cd mitralvalve-project
 ```
 
