@@ -138,7 +138,7 @@ def main( ) -> NoReturn:
         step_size=1,
         checkpoint_name="model_final_checkpoint",
         trt_engine=None,
-        ps=[80, 160, 160]
+        ps=[80, 160, 128]
     )
 
     iso_pred = postprocess(iso_pred)

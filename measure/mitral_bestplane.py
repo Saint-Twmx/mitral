@@ -64,7 +64,7 @@ def mit_bestplane_new(ori_pred, centerline, measure):
         best_plane = check_plane_direction(centerline[0], centerline[-1], best_plane)
         ad_co_bp_dis = calculate_points_plane_distance(mitral_point.cpu(), best_plane.cpu())
         tmp_num+=1
-        print(f"平面 max {tmp_num} ：{torch.max(ad_co_bp_dis)}, best_plane:{best_plane}")
+        # print(f"平面 max {tmp_num} ：{torch.max(ad_co_bp_dis)}, best_plane:{best_plane}")
     measure["mitral_point"] = mitral_point
 
     tmp_value = 0
@@ -74,7 +74,6 @@ def mit_bestplane_new(ori_pred, centerline, measure):
         plane_dis = calculate_points_plane_distance(mitral_point, tmp_plane)
         values_below_threshold = (plane_dis < 0.1)
         count = torch.sum(values_below_threshold).item()
-        print(tmp_value, tmp_plane, count, len(mitral_point), )
         if count / len(mitral_point) > 0.9995 or tmp_value>100:
             print(f"tmp_plane:{tmp_plane}, best_plane:{best_plane}")
             tmp_plane = check_plane_direction(centerline[0], centerline[-1], tmp_plane)

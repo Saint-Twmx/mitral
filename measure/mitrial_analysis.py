@@ -68,7 +68,6 @@ def mit_int_septum(measure, ori_pred):
     measure['septum_plane'] = septum_plane
     measure["interatrial_septum_three_points"] = three_points
     measure["interatrial_septum_annluls_angle"] = float(angle)
-    print(f"---------房间隔夹角：{angle}")
 
 def mit_non_planarity(measure):
     # 非平面化角度
