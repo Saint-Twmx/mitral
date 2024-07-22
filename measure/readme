@@ -1,0 +1,20 @@
+'''
+二尖瓣待定计算指标
+☑    ****              : best_plane                    : 计算投影的平面
+☑    Perimeter(proj)_D : mitral_annulus_perimeter_proj : 瓣环投影周长
+☒    Perimeter_D       : mitral_annulus_perimeter      : 瓣环三维周长
+☒    Area_D              *****                         : 瓣环开口真实面积(目前没法拟合这个曲面)
+☒    Area(proj)_D      : mitral_orifice_area_proj      : 瓣环开口在某一平面的投影面积
+☒    TT_D              : mitral_tt                     : 三角区一端到一端距离
+☒    TT(proj)_D        : mitral_tt_proj                : 三角区一端到一端投影平面距离
+☑    CC_D              : mitral_cc                     : 前叶后叶外轮廓交接距离（长径）
+☑    CC(proj)_D        : mitral_cc_proj                : 前叶后叶外轮廓投影平面交接距离（长径）
+☑    ****              : mitral_cc_real                : 前叶后叶外轮廓真实交接点距离
+☑    ****              : mitral_cc_real_proj           : 前叶后叶外轮廓真实交接点投影平面交接距离
+☑    AP_D              : mitral_ap                     : 前叶后叶外轮廓最宽距离
+☑    AP(proj)_D        : mitral_ap_proj                : 前叶后叶外轮廓投影平面最宽距离
+'''
+
+'''
+我计算的投影值是否有意义？ 我的平面并不是MPR某个“相切瓣环”的测量平面，而是“悬浮瓣环上面”的平面。
+'''
