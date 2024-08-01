@@ -1,6 +1,6 @@
 # Mitral analyze
 
-The code mainly uses the nnUNet framework https://github.com/MIC-DKFZ/MedNeXt
+We first trained a segmentation model based on the Unet for cardiac structures, especially the mitral valve structure of the left heart, and you can refer to https://github.com/MIC-DKFZ/MedNeXt for the training and inference code. Then, we used the segmentation results for further measurement using measurement algorithms, including but not limited to CC, TT, AP, mitral annular plane, mitral annular circumference/area, non-planar angles, angles between the mitral annulus and the aorta, left atrial analysis, and papillary muscle analysis, etc.
 
 # Model Training
 We utilized the MedNeXt framework and tested the results under S3, S5, B3, B5, and M3 models respectively. Here, we provide the results obtained from training on a partial dataset using the S3 model, which achieved relatively high DICE scores.
