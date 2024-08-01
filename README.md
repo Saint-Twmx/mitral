@@ -1,4 +1,4 @@
-# mitral analyze
+# Mitral analyze
 
 The code mainly uses the nnUNet framework https://github.com/MIC-DKFZ/MedNeXt
 
