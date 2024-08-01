@@ -26,9 +26,6 @@ def main():
 
     threeD_plane, best_plane = mit_bestplane_new(ori_pred, centerline, measure)
 
-    measure["best_plane"] = best_plane
-    measure["threeD_plane"] = threeD_plane
-
     mit_annulus_perimeter_area(ori_pred, head, threeD_plane, best_plane, measure)
 
     mit_cc_ap(ori_pred, head, measure) # cc ap 只能是types = 2
